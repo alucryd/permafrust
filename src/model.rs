@@ -1,14 +1,16 @@
+use serde::Serialize;
 use sqlx::types::chrono::NaiveDateTime;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(sqlx::FromRow)]
+#[derive(FromRow, Serialize)]
 pub struct RootDirectory {
     pub id: Uuid,
     pub path: String,
     pub depth: i16,
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(FromRow, Serialize)]
 pub struct Directory {
     pub id: Uuid,
     pub path: String,
@@ -16,7 +18,7 @@ pub struct Directory {
     pub root_directory_id: Uuid,
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(FromRow)]
 pub struct Archive {
     pub id: Uuid,
     pub name: String,

@@ -1,3 +1,8 @@
+# Rust
 **/*.rs.bk
 /target/
 .vscode/
+
+# JavaScript
+node_modules/
+public/build/

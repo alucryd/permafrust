@@ -1,17 +1,20 @@
 use super::borg;
+use super::database::*;
 use super::permafrust;
 use async_std::task;
 use clap::{App, SubCommand};
+use http_types::headers::HeaderValue;
 use serde::Deserialize;
 use sqlx::postgres::Postgres;
 use sqlx::{Acquire, PgPool};
 use std::env;
+use tide::security::{CorsMiddleware, Origin};
 use tide::{Body, Request, Response, StatusCode};
 use tide_sqlx::{SQLxMiddleware, SQLxRequestExt};
 use uuid::Uuid;
 
 #[derive(Deserialize)]
-struct InitRequest {
+struct InitRepositoryRequest {
     #[serde(default = "default_repo")]
     repo: String,
     #[serde(default = "default_encryption")]
@@ -19,13 +22,13 @@ struct InitRequest {
 }
 
 #[derive(Deserialize)]
-struct ListRequest {
+struct ListArchivesRequest {
     #[serde(default = "default_repo")]
     repo: String,
 }
 
 #[derive(Deserialize)]
-struct CreateRequest {
+struct CreateArchiveRequest {
     #[serde(default = "default_repo")]
     repo: String,
     directory_id: Uuid,
@@ -35,7 +38,7 @@ struct CreateRequest {
 }
 
 #[derive(Deserialize)]
-struct UpdateRequest {
+struct ReplaceArchiveRequest {
     #[serde(default = "default_repo")]
     repo: String,
     archive_id: Uuid,
@@ -45,7 +48,7 @@ struct UpdateRequest {
 }
 
 #[derive(Deserialize)]
-struct DeleteRequest {
+struct DeleteArchiveRequest {
     #[serde(default = "default_repo")]
     repo: String,
     archive_id: Uuid,
@@ -70,19 +73,27 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
 
 pub async fn main(pool: PgPool) -> tide::Result<()> {
     let mut app = tide::new();
+    app.with(
+        CorsMiddleware::new()
+            .allow_methods("GET, POST, PUT, DELETE".parse::<HeaderValue>().unwrap())
+            .allow_origin(Origin::from("*"))
+            .allow_credentials(false),
+    );
     app.with(SQLxMiddleware::from(pool));
-    app.at("/api/init").post(init);
-    app.at("/api/archives").get(list);
-    app.at("/api/archives").post(create);
+    app.at("/api/repository/init").post(init_repository);
+    app.at("/api/root-directories").get(list_root_directories);
+    app.at("/api/directories").get(list_directories);
+    app.at("/api/archives").get(list_archives);
+    app.at("/api/archives").post(create_archive);
     // todo use path variables when tide supports them
-    app.at("/api/archives").put(update);
-    app.at("/api/archives").delete(delete);
+    app.at("/api/archives").put(replace_archive);
+    app.at("/api/archives").delete(delete_archive);
     app.listen("127.0.0.1:8080").await?;
     Ok(())
 }
 
-async fn init(mut req: Request<()>) -> tide::Result {
-    let init_req: InitRequest = req.body_json().await?;
+async fn init_repository(mut req: Request<()>) -> tide::Result {
+    let init_req: InitRepositoryRequest = req.body_json().await?;
     task::spawn(async move {
         permafrust::init(&init_req.repo, &init_req.encryption).await;
     });
@@ -90,15 +101,31 @@ async fn init(mut req: Request<()>) -> tide::Result {
     Ok(res)
 }
 
-async fn list(mut req: Request<()>) -> tide::Result {
-    let list_req: ListRequest = req.body_json().await?;
+async fn list_root_directories(req: Request<()>) -> tide::Result {
+    let mut res = Response::new(StatusCode::Ok);
+    res.set_body(Body::from_json(
+        &find_root_directories(&mut req.sqlx_conn::<Postgres>().await.acquire().await.unwrap())
+            .await,
+    )?);
+    Ok(res)
+}
+
+async fn list_directories(req: Request<()>) -> tide::Result {
+    let mut res = Response::new(StatusCode::Ok);
+    res.set_body(Body::from_json(
+        &find_directories(&mut req.sqlx_conn::<Postgres>().await.acquire().await.unwrap()).await,
+    )?);
+    Ok(res)
+}
+async fn list_archives(mut req: Request<()>) -> tide::Result {
+    let list_req: ListArchivesRequest = req.body_json().await?;
     let mut res = Response::new(StatusCode::Ok);
     res.set_body(Body::from_json(&borg::list(&list_req.repo).await?)?);
     Ok(res)
 }
 
-async fn create(mut req: Request<()>) -> tide::Result {
-    let create_req: CreateRequest = req.body_json().await?;
+async fn create_archive(mut req: Request<()>) -> tide::Result {
+    let create_req: CreateArchiveRequest = req.body_json().await?;
     task::spawn(async move {
         permafrust::create(
             &mut req.sqlx_conn::<Postgres>().await.acquire().await.unwrap(),
@@ -113,15 +140,15 @@ async fn create(mut req: Request<()>) -> tide::Result {
     Ok(res)
 }
 
-async fn update(mut req: Request<()>) -> tide::Result {
-    let recreate_req: UpdateRequest = req.body_json().await?;
+async fn replace_archive(mut req: Request<()>) -> tide::Result {
+    let replace_req: ReplaceArchiveRequest = req.body_json().await?;
     task::spawn(async move {
         permafrust::update(
             &mut req.sqlx_conn::<Postgres>().await.acquire().await.unwrap(),
-            &recreate_req.repo,
-            &recreate_req.archive_id,
-            &recreate_req.compression,
-            recreate_req.dry_run,
+            &replace_req.repo,
+            &replace_req.archive_id,
+            &replace_req.compression,
+            replace_req.dry_run,
         )
         .await;
     });
@@ -129,8 +156,8 @@ async fn update(mut req: Request<()>) -> tide::Result {
     Ok(res)
 }
 
-async fn delete(mut req: Request<()>) -> tide::Result {
-    let delete_req: DeleteRequest = req.body_json().await?;
+async fn delete_archive(mut req: Request<()>) -> tide::Result {
+    let delete_req: DeleteArchiveRequest = req.body_json().await?;
     task::spawn(async move {
         permafrust::delete(
             &mut req.sqlx_conn::<Postgres>().await.acquire().await.unwrap(),
