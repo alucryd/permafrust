@@ -64,9 +64,13 @@ pub async fn scan(conn: &mut PgConnection) {
                 Some(directory) => {
                     if modified_date > directory.modified_date {
                         update_directory(conn, &directory.id, &modified_date).await;
+                        println!("{} [{}]", &path, &directory.id);
                     }
                 }
-                None => create_directory(conn, path, &modified_date, &root_directory.id).await,
+                None => {
+                    let id = create_directory(conn, path, &modified_date, &root_directory.id).await;
+                    println!("{} [{}]", &path, &id);
+                }
             }
         }
     }
@@ -98,13 +102,13 @@ pub async fn create(
     if f64::from(df_output.avail - du_output.size) / f64::from(df_output.size) < 0.05 {
         panic!("Not enough space");
     }
-    let name = get_archive_name(&directory.path);
-    let create_output = borg::create(repo, &name, &directory.path, compression, dry_run)
+    let prefix = get_archive_prefix(&directory.path);
+    let create_output = borg::create(repo, &prefix, &directory.path, compression, dry_run)
         .await
         .expect("Failed to create archive");
     create_archive(
         conn,
-        &name,
+        &prefix,
         &create_output.repository.id,
         &Local::now().naive_local(),
         directory_id,
@@ -130,16 +134,13 @@ pub async fn update(
     if f64::from(df_output.avail - du_output.size) / f64::from(df_output.size) < 0.05 {
         panic!("Not enough space");
     }
-    let new_name = format!("{}-new", &archive.name);
-    borg::create(repo, &new_name, &directory.path, compression, dry_run)
+    let prefix = get_archive_prefix(&directory.path);
+    borg::create(repo, &prefix, &directory.path, compression, dry_run)
         .await
         .expect("Failed to create new archive");
-    borg::delete(repo, &archive.name, dry_run)
+    borg::prune(repo, &prefix, dry_run)
         .await
-        .expect("Failed to delete old archive");
-    borg::rename(repo, &new_name, &archive.name, dry_run)
-        .await
-        .expect("Failed to rename new archive");
+        .expect("Failed to prune old archive(s)");
     update_archive(conn, &archive.id, &Local::now().naive_local()).await;
 }
 
@@ -169,7 +170,7 @@ pub async fn check(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, repai
         .expect("Failed to check archive");
 }
 
-fn get_archive_name(path: &str) -> String {
+fn get_archive_prefix(path: &str) -> String {
     path.split(|c| c == '/' || c == '_')
         .map(|component| {
             let mut component = component.to_owned();

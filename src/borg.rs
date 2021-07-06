@@ -93,12 +93,12 @@ pub async fn list(repo: &str) -> Result<ListOutput> {
 
 pub async fn create(
     repo: &str,
-    name: &str,
+    prefix: &str,
     path: &str,
     compression: &str,
     dry_run: bool,
 ) -> Result<CreateOutput> {
-    let repo_name = format!("{}::{}", repo, name);
+    let repo_name = format!("{}::{}-{{utcnow}}", repo, prefix);
     let mut args: Vec<&str> = Vec::new();
     args.push("create");
     if dry_run {
@@ -109,7 +109,9 @@ pub async fn create(
     args.push("--compression");
     args.push(compression);
     args.push("--noatime");
+    args.push("--noacls");
     args.push("--nobsdflags");
+    args.push("--noxattrs");
     args.push(&repo_name);
     args.push(".");
     let output = Command::new("borg")
@@ -122,15 +124,16 @@ pub async fn create(
     Ok(create_output)
 }
 
-pub async fn delete(repo: &str, name: &str, dry_run: bool) -> Result<()> {
-    let repo_name = format!("{}::{}", repo, name);
+pub async fn delete(repo: &str, prefix: &str, dry_run: bool) -> Result<()> {
     let mut args: Vec<&str> = Vec::new();
     args.push("delete");
     if dry_run {
         args.push("--dry-run");
     }
     args.push("--progress");
-    args.push(&repo_name);
+    args.push("--prefix");
+    args.push(&prefix);
+    args.push(&repo);
     Command::new("borg")
         .args(&args)
         .stdout(Stdio::inherit())
@@ -140,15 +143,17 @@ pub async fn delete(repo: &str, name: &str, dry_run: bool) -> Result<()> {
     Ok(())
 }
 
-pub async fn rename(repo: &str, name: &str, new_name: &str, dry_run: bool) -> Result<()> {
-    let repo_name = format!("{}::{}", repo, name);
+pub async fn prune(repo: &str, prefix: &str, dry_run: bool) -> Result<()> {
     let mut args: Vec<&str> = Vec::new();
-    args.push("rename");
+    args.push("prune");
     if dry_run {
         args.push("--dry-run");
     }
-    args.push(&repo_name);
-    args.push(new_name);
+    args.push("--keep-last");
+    args.push("1");
+    args.push("--prefix");
+    args.push(prefix);
+    args.push(&repo);
     Command::new("borg")
         .args(&args)
         .stdout(Stdio::inherit())

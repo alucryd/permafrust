@@ -91,13 +91,14 @@ pub async fn create_directory(
     path: &str,
     modified_date: &NaiveDateTime,
     root_directory_id: &Uuid,
-) {
+) -> Uuid {
+    let id = Uuid::new_v4();
     sqlx::query!(
         "
         INSERT INTO directories (id, path, modified_date, root_directory_id)
         VALUES ($1, $2, $3, $4)
         ",
-        Uuid::new_v4(),
+        &id,
         path,
         modified_date,
         root_directory_id,
@@ -105,6 +106,7 @@ pub async fn create_directory(
     .execute(conn)
     .await
     .expect("Error while creating directory");
+    id
 }
 
 pub async fn update_directory(conn: &mut PgConnection, id: &Uuid, modified_date: &NaiveDateTime) {
