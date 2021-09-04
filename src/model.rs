@@ -23,6 +23,7 @@ pub struct Archive {
     pub id: Uuid,
     pub name: String,
     pub repo_id: String,
+    pub archive_id: String,
     pub created_date: NaiveDateTime,
     pub directory_id: Option<Uuid>,
 }

@@ -1,0 +1,437 @@
+{
+  "db": "PostgreSQL",
+  "0eb5cb679f0f56cbca826d365cebaf9cd8c482fcbfef43748d1ed86c1185ee06": {
+    "query": "\n        SELECT *\n        FROM directories\n        WHERE id = $1\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "path",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "modified_date",
+          "type_info": "Timestamp"
+        },
+        {
+          "ordinal": 3,
+          "name": "root_directory_id",
+          "type_info": "Uuid"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "1527cb79300651efd43eb1c68bfccd576af63e2344370fbc573b81b94315c1d8": {
+    "query": "\n        SELECT *\n        FROM directories\n        WHERE path = $1\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "path",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "modified_date",
+          "type_info": "Timestamp"
+        },
+        {
+          "ordinal": 3,
+          "name": "root_directory_id",
+          "type_info": "Uuid"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "20340c7f088724fd5a278e13212f24f77aff7cfc4b2193737a4b428e6ca87949": {
+    "query": "\n        UPDATE directories\n        SET modified_date = $2\n        WHERE id = $1\n        ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Timestamp"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "56b0e86dce524b7068c4045df0859c4bab055c8b0bee6537dddbf05a21d4d94c": {
+    "query": "\n        SELECT *\n        FROM root_directories\n        ORDER BY path\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "path",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "depth",
+          "type_info": "Int2"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "5b49b2f794a4d71491bf8263d9243f81c1eb62ee34336c4c304aa197acb74884": {
+    "query": "\n        INSERT INTO archives (id, name, repo_id, archive_id, created_date, directory_id)\n        VALUES ($1, $2, $3, $4, $5, $6)\n        ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Varchar",
+          "Varchar",
+          "Varchar",
+          "Timestamp",
+          "Uuid"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "948f3f62a90b503e8607b4974f25ef359480a7e3769e1c89c353235b437a2e56": {
+    "query": "\n        SELECT *\n        FROM archives\n        WHERE repo_id = $1\n        AND archive_id = $2\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "name",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "repo_id",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 3,
+          "name": "archive_id",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 4,
+          "name": "created_date",
+          "type_info": "Timestamp"
+        },
+        {
+          "ordinal": 5,
+          "name": "directory_id",
+          "type_info": "Uuid"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ]
+    }
+  },
+  "a84e1e801a107bbbbfa668b6a8a4dc03f7f82d5d2f6f7d57970e666299daa943": {
+    "query": "\n        SELECT *\n        FROM archives\n        WHERE id = $1\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "name",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "repo_id",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 3,
+          "name": "archive_id",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 4,
+          "name": "created_date",
+          "type_info": "Timestamp"
+        },
+        {
+          "ordinal": 5,
+          "name": "directory_id",
+          "type_info": "Uuid"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ]
+    }
+  },
+  "b2180d36bdd60fd21889ce9695b19a97ba3461d1aed4faf9d604b299a4992e8e": {
+    "query": "\n        INSERT INTO directories (id, path, modified_date, root_directory_id)\n        VALUES ($1, $2, $3, $4)\n        ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Varchar",
+          "Timestamp",
+          "Uuid"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "c05fdbb26e27f321fb75b6d10919b04ef8bcadac09b16f91fa56cb2ee41a9d5d": {
+    "query": "\n        DELETE FROM directories\n        WHERE id = $1\n        ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "c3eb5c73b3f5aac8749194ba9c0aa35db9e5a649f011638bfaaf443bb04a5a2e": {
+    "query": "\n        DELETE FROM root_directories\n        WHERE id = $1\n        ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "c597a203bad469305825c0bf42a928a12d891b51bbc5b1ad4711baf00a4361f0": {
+    "query": "\n        SELECT *\n        FROM archives\n        WHERE directory_id = $1\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "name",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "repo_id",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 3,
+          "name": "archive_id",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 4,
+          "name": "created_date",
+          "type_info": "Timestamp"
+        },
+        {
+          "ordinal": 5,
+          "name": "directory_id",
+          "type_info": "Uuid"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ]
+    }
+  },
+  "c7f513346d31e0d530671782a31c9961723d4d36c8c052c7c90f228cff5ad1b6": {
+    "query": "\n        DELETE FROM archives\n        WHERE id = $1\n        ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "d216673845be75c4a011b71f80aa443b2e3750a98dfce5662666b42633919e0e": {
+    "query": "\n        SELECT *\n        FROM root_directories\n        WHERE path = $1\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "path",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "depth",
+          "type_info": "Int2"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "d62d240adcf92c9586f6faf09ce5615d2fd790b25835716bda5e5c586b746471": {
+    "query": "\n        SELECT *\n        FROM directories\n        ORDER BY path\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "path",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "modified_date",
+          "type_info": "Timestamp"
+        },
+        {
+          "ordinal": 3,
+          "name": "root_directory_id",
+          "type_info": "Uuid"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "e78f22585bea4295b21fd1aa7b89c6423588f167d0980a975b87ca1e2acc22a3": {
+    "query": "\n        UPDATE archives\n        SET archive_id=$2, created_date = $3\n        WHERE id = $1\n        ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Varchar",
+          "Timestamp"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "fd8ca810311ec5d93e90323e29acc44c1ee523f9211eacacf8ee4a4dd6448d47": {
+    "query": "\n        INSERT INTO root_directories (id, path, depth)\n        VALUES ($1, $2, $3)\n        ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Varchar",
+          "Int2"
+        ]
+      },
+      "nullable": []
+    }
+  }
+}

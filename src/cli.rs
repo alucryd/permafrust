@@ -56,6 +56,17 @@ pub fn init_subcommand<'a, 'b>() -> App<'a, 'b> {
         )
 }
 
+pub fn list_subcommand<'a, 'b>() -> App<'a, 'b> {
+    SubCommand::with_name("list").about("List archives").arg(
+        Arg::with_name("REPO")
+            .short("r")
+            .long("repo")
+            .help("Borg repo")
+            .required(false)
+            .env("BORG_REPO"),
+    )
+}
+
 pub fn create_subcommand<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("create")
         .about("Archive directories")
@@ -92,7 +103,7 @@ pub fn create_subcommand<'a, 'b>() -> App<'a, 'b> {
 
 pub fn update_subcommand<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("update")
-        .about("Update backups")
+        .about("Update archives")
         .arg(
             Arg::with_name("UUIDS")
                 .help("UUIDs of archives to update")
@@ -225,6 +236,14 @@ pub async fn init(matches: &ArgMatches<'_>) {
     permafrust::init(
         &matches.value_of("REPO").unwrap(),
         &matches.value_of("ENCRYPTION").unwrap(),
+    )
+    .await;
+}
+
+pub async fn list(pool: &PgPool, matches: &ArgMatches<'_>) {
+    permafrust::list(
+        &mut pool.acquire().await.unwrap(),
+        &matches.value_of("REPO").unwrap(),
     )
     .await;
 }

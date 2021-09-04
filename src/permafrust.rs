@@ -4,6 +4,7 @@ use super::df;
 use super::du;
 use async_std::path::Path;
 use chrono::{DateTime, Local, NaiveDateTime};
+use log::info;
 use sqlx::PgConnection;
 use std::convert::TryFrom;
 use uuid::Uuid;
@@ -36,14 +37,6 @@ pub async fn unwatch(conn: &mut PgConnection, path: &str) {
 }
 
 pub async fn scan(conn: &mut PgConnection) {
-    let directories = find_directories(conn).await;
-    for directory in directories {
-        let path = Path::new(&directory.path);
-        if !path.is_dir().await {
-            delete_directory(conn, &directory.id).await;
-        }
-    }
-
     let root_directories = find_root_directories(conn).await;
     for root_directory in root_directories {
         let directories: Vec<DirEntry> = WalkDir::new(&root_directory.path)
@@ -62,16 +55,33 @@ pub async fn scan(conn: &mut PgConnection) {
             let directory = find_directory_by_path(conn, path).await;
             match directory {
                 Some(directory) => {
-                    if modified_date > directory.modified_date {
+                    if modified_date.timestamp_millis() > directory.modified_date.timestamp_millis()
+                    {
                         update_directory(conn, &directory.id, &modified_date).await;
-                        println!("{} [{}]", &path, &directory.id);
                     }
                 }
                 None => {
-                    let id = create_directory(conn, path, &modified_date, &root_directory.id).await;
-                    println!("{} [{}]", &path, &id);
+                    create_directory(conn, path, &modified_date, &root_directory.id).await;
                 }
             }
+        }
+    }
+    let directories = find_directories(conn).await;
+    for directory in directories {
+        let path = Path::new(&directory.path);
+        if !path.is_dir().await {
+            delete_directory(conn, &directory.id).await;
+        }
+        let archive = find_archive_by_directory_id(conn, &directory.id).await;
+        match archive {
+            Some(archive) => {
+                if archive.created_date.timestamp_millis()
+                    < directory.modified_date.timestamp_millis()
+                {
+                    println!("Out of date: {} [{}]", &directory.path, &directory.id);
+                }
+            }
+            None => println!("Not backed up: {} [{}]", &directory.path, &directory.id),
         }
     }
 }
@@ -80,6 +90,17 @@ pub async fn init(repo: &str, encryption: &str) {
     borg::init(repo, encryption)
         .await
         .expect("Failed to init repo");
+}
+
+pub async fn list(conn: &mut PgConnection, repo: &str) {
+    let list_output = borg::list(repo).await.expect("Failed to list repo");
+    for archive in list_output.archives {
+        let archive =
+            find_archive_by_repo_id_and_archive_id(conn, &list_output.repository.id, &archive.id)
+                .await
+                .unwrap();
+        println!("{} {} [{}]", archive.name, archive.created_date, archive.id);
+    }
 }
 
 pub async fn create(
@@ -95,11 +116,10 @@ pub async fn create(
     };
     let df_output = df::main(repo).await;
     let du_output = du::main(&directory.path).await;
-    println!(
-        "{}",
-        f64::from(df_output.avail - du_output.size) / f64::from(df_output.size)
-    );
-    if f64::from(df_output.avail - du_output.size) / f64::from(df_output.size) < 0.05 {
+    let remaining_space_after =
+        f64::from(df_output.avail - du_output.size) / f64::from(df_output.size);
+    info!("Remaining space after: {}", remaining_space_after);
+    if remaining_space_after < 0.05 {
         panic!("Not enough space");
     }
     let prefix = get_archive_prefix(&directory.path);
@@ -110,6 +130,7 @@ pub async fn create(
         conn,
         &prefix,
         &create_output.repository.id,
+        &create_output.archive.id,
         &Local::now().naive_local(),
         directory_id,
     )
@@ -119,29 +140,36 @@ pub async fn create(
 pub async fn update(
     conn: &mut PgConnection,
     repo: &str,
-    archive_id: &Uuid,
+    directory_id: &Uuid,
     compression: &str,
     dry_run: bool,
 ) {
-    let archive = find_archive_by_id(conn, archive_id).await;
-    let directory = find_directory_by_id(conn, &archive.directory_id.unwrap()).await;
+    let archive = find_archive_by_directory_id(conn, directory_id)
+        .await
+        .unwrap();
+    let directory = find_directory_by_id(conn, directory_id).await;
     let df_output = df::main(repo).await;
     let du_output = du::main(&directory.path).await;
-    println!(
-        "{}",
-        f64::from(df_output.avail - du_output.size) / f64::from(df_output.size)
-    );
-    if f64::from(df_output.avail - du_output.size) / f64::from(df_output.size) < 0.05 {
+    let remaining_space_after =
+        f64::from(df_output.avail - du_output.size) / f64::from(df_output.size);
+    info!("Remaining space after: {}", remaining_space_after);
+    if remaining_space_after < 0.05 {
         panic!("Not enough space");
     }
     let prefix = get_archive_prefix(&directory.path);
-    borg::create(repo, &prefix, &directory.path, compression, dry_run)
+    let create_output = borg::create(repo, &prefix, &directory.path, compression, dry_run)
         .await
         .expect("Failed to create new archive");
     borg::prune(repo, &prefix, dry_run)
         .await
         .expect("Failed to prune old archive(s)");
-    update_archive(conn, &archive.id, &Local::now().naive_local()).await;
+    update_archive(
+        conn,
+        &archive.id,
+        &create_output.archive.id,
+        &Local::now().naive_local(),
+    )
+    .await;
 }
 
 pub async fn delete(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, dry_run: bool) {

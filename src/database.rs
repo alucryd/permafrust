@@ -185,17 +185,19 @@ pub async fn create_archive(
     conn: &mut PgConnection,
     name: &str,
     repo_id: &str,
+    archive_id: &str,
     created_date: &NaiveDateTime,
     directory_id: &Uuid,
 ) {
     sqlx::query!(
         "
-        INSERT INTO archives (id, name, repo_id, created_date, directory_id)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO archives (id, name, repo_id, archive_id, created_date, directory_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ",
         Uuid::new_v4(),
         name,
         repo_id,
+        archive_id,
         created_date,
         directory_id,
     )
@@ -204,14 +206,20 @@ pub async fn create_archive(
     .expect("Error while creating archive");
 }
 
-pub async fn update_archive(conn: &mut PgConnection, id: &Uuid, created_date: &NaiveDateTime) {
+pub async fn update_archive(
+    conn: &mut PgConnection,
+    id: &Uuid,
+    archive_id: &str,
+    created_date: &NaiveDateTime,
+) {
     sqlx::query!(
         "
         UPDATE archives
-        SET created_date = $2
+        SET archive_id=$2, created_date = $3
         WHERE id = $1
         ",
         id,
+        archive_id,
         created_date,
     )
     .execute(conn)
@@ -252,6 +260,30 @@ pub async fn find_archive_by_directory_id(
     .expect(&format!(
         "Error while finding archive with directory_id {}",
         directory_id
+    ))
+}
+
+pub async fn find_archive_by_repo_id_and_archive_id(
+    conn: &mut PgConnection,
+    repo_id: &str,
+    archive_id: &str,
+) -> Option<Archive> {
+    sqlx::query_as!(
+        Archive,
+        "
+        SELECT *
+        FROM archives
+        WHERE repo_id = $1
+        AND archive_id = $2
+        ",
+        repo_id,
+        archive_id,
+    )
+    .fetch_optional(conn)
+    .await
+    .expect(&format!(
+        "Error while finding archive with repo_id {} and archive_id {}",
+        repo_id, archive_id,
     ))
 }
 

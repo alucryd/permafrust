@@ -1,9 +1,10 @@
 use async_std::fs;
+use async_std::io::Error;
 use async_std::path::Path;
 use async_std::process::{Command, Stdio};
 use chrono::NaiveDateTime;
+use log::debug;
 use serde::{Deserialize, Serialize};
-use tide::Result;
 
 mod datetime_format {
     use chrono::NaiveDateTime;
@@ -30,8 +31,8 @@ mod datetime_format {
 
 #[derive(Deserialize, Serialize)]
 pub struct Archive {
-    id: String,
-    name: String,
+    pub id: String,
+    pub name: String,
     #[serde(with = "datetime_format")]
     pub start: NaiveDateTime,
 }
@@ -51,9 +52,9 @@ pub struct Repository {
 
 #[derive(Deserialize, Serialize)]
 pub struct ListOutput {
-    archives: Vec<Archive>,
+    pub archives: Vec<Archive>,
     encryption: Encryption,
-    repository: Repository,
+    pub repository: Repository,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -62,7 +63,7 @@ pub struct CreateOutput {
     pub repository: Repository,
 }
 
-pub async fn init(repo: &str, encryption: &str) -> Result<()> {
+pub async fn init(repo: &str, encryption: &str) -> Result<(), Error> {
     if !Path::new(repo).is_dir().await {
         fs::create_dir_all(repo).await?;
     }
@@ -72,21 +73,25 @@ pub async fn init(repo: &str, encryption: &str) -> Result<()> {
     args.push("--encryption");
     args.push(encryption);
     args.push(repo);
-    Command::new("borg")
+    let mut command = Command::new("borg");
+    command
         .args(&args)
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .await?;
+        .stderr(Stdio::inherit());
+    debug!("{:?}", command);
+    command.status().await?;
     Ok(())
 }
 
-pub async fn list(repo: &str) -> Result<ListOutput> {
+pub async fn list(repo: &str) -> Result<ListOutput, Error> {
     let mut args: Vec<&str> = Vec::new();
     args.push("list");
     args.push("--json");
     args.push(repo);
-    let output = Command::new("borg").args(&args).output().await?;
+    let mut command = Command::new("borg");
+    command.args(&args);
+    debug!("{:?}", command);
+    let output = command.output().await?;
     let list_output = serde_json::from_slice(output.stdout.as_slice())?;
     Ok(list_output)
 }
@@ -97,8 +102,8 @@ pub async fn create(
     path: &str,
     compression: &str,
     dry_run: bool,
-) -> Result<CreateOutput> {
-    let repo_name = format!("{}::{}-{{utcnow}}", repo, prefix);
+) -> Result<CreateOutput, Error> {
+    let repo_name = format!("{}::{}-{{utcnow:%Y%m%d-%H%M%S}}", repo, prefix);
     let mut args: Vec<&str> = Vec::new();
     args.push("create");
     if dry_run {
@@ -114,17 +119,18 @@ pub async fn create(
     args.push("--noxattrs");
     args.push(&repo_name);
     args.push(".");
-    let output = Command::new("borg")
+    let mut command = Command::new("borg");
+    command
         .current_dir(path)
         .args(&args)
-        .stderr(Stdio::inherit())
-        .output()
-        .await?;
+        .stderr(Stdio::inherit());
+    debug!("{:?}", command);
+    let output = command.output().await?;
     let create_output = serde_json::from_slice(output.stdout.as_slice())?;
     Ok(create_output)
 }
 
-pub async fn delete(repo: &str, prefix: &str, dry_run: bool) -> Result<()> {
+pub async fn delete(repo: &str, prefix: &str, dry_run: bool) -> Result<(), Error> {
     let mut args: Vec<&str> = Vec::new();
     args.push("delete");
     if dry_run {
@@ -134,16 +140,17 @@ pub async fn delete(repo: &str, prefix: &str, dry_run: bool) -> Result<()> {
     args.push("--prefix");
     args.push(&prefix);
     args.push(&repo);
-    Command::new("borg")
+    let mut command = Command::new("borg");
+    command
         .args(&args)
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .await?;
+        .stderr(Stdio::inherit());
+    debug!("{:?}", command);
+    command.status().await?;
     Ok(())
 }
 
-pub async fn prune(repo: &str, prefix: &str, dry_run: bool) -> Result<()> {
+pub async fn prune(repo: &str, prefix: &str, dry_run: bool) -> Result<(), Error> {
     let mut args: Vec<&str> = Vec::new();
     args.push("prune");
     if dry_run {
@@ -154,16 +161,17 @@ pub async fn prune(repo: &str, prefix: &str, dry_run: bool) -> Result<()> {
     args.push("--prefix");
     args.push(prefix);
     args.push(&repo);
-    Command::new("borg")
+    let mut command = Command::new("borg");
+    command
         .args(&args)
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .await?;
+        .stderr(Stdio::inherit());
+    debug!("{:?}", command);
+    command.status().await?;
     Ok(())
 }
 
-pub async fn extract(repo: &str, name: &str, path: &str, dry_run: bool) -> Result<()> {
+pub async fn extract(repo: &str, name: &str, path: &str, dry_run: bool) -> Result<(), Error> {
     if !Path::new(path).is_dir().await {
         fs::create_dir_all(path).await?;
     }
@@ -174,16 +182,17 @@ pub async fn extract(repo: &str, name: &str, path: &str, dry_run: bool) -> Resul
         args.push("--dry-run");
     }
     args.push(&repo_name);
-    Command::new("borg")
+    let mut command = Command::new("borg");
+    command
         .current_dir(path)
         .args(&args)
-        .stderr(Stdio::inherit())
-        .status()
-        .await?;
+        .stderr(Stdio::inherit());
+    debug!("{:?}", command);
+    command.status().await?;
     Ok(())
 }
 
-pub async fn check(repo: &str, name: &str, repair: bool) -> Result<()> {
+pub async fn check(repo: &str, name: &str, repair: bool) -> Result<(), Error> {
     let repo_name = format!("{}::{}", repo, name);
     let mut args: Vec<&str> = Vec::new();
     args.push("check");
@@ -191,11 +200,12 @@ pub async fn check(repo: &str, name: &str, repair: bool) -> Result<()> {
         args.push("--repair");
     }
     args.push(&repo_name);
-    Command::new("borg")
+    let mut command = Command::new("borg");
+    command
         .args(&args)
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .await?;
+        .stderr(Stdio::inherit());
+    debug!("{:?}", command);
+    command.status().await?;
     Ok(())
 }

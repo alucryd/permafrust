@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
+extern crate env_logger;
+extern crate log;
 
 use clap::App;
 use dotenv::dotenv;
@@ -12,10 +14,10 @@ mod df;
 mod du;
 mod model;
 mod permafrust;
-mod web;
 
 #[async_std::main]
 async fn main() {
+    env_logger::init();
     let matches = App::new(env!("CARGO_BIN_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
@@ -25,12 +27,12 @@ async fn main() {
             cli::unwatch_subcommand(),
             cli::scan_subcommand(),
             cli::init_subcommand(),
+            cli::list_subcommand(),
             cli::create_subcommand(),
             cli::update_subcommand(),
             cli::delete_subcommand(),
             cli::extract_subcommand(),
             cli::check_subcommand(),
-            web::subcommand(),
         ])
         .get_matches();
 
@@ -44,6 +46,7 @@ async fn main() {
             }
             Some("scan") => cli::scan(&pool, matches.subcommand_matches("scan").unwrap()).await,
             Some("init") => cli::init(matches.subcommand_matches("init").unwrap()).await,
+            Some("list") => cli::list(&pool, matches.subcommand_matches("list").unwrap()).await,
             Some("create") => {
                 cli::create(&pool, matches.subcommand_matches("create").unwrap()).await
             }
@@ -57,7 +60,6 @@ async fn main() {
                 cli::extract(&pool, matches.subcommand_matches("extract").unwrap()).await
             }
             Some("check") => cli::check(&pool, matches.subcommand_matches("check").unwrap()).await,
-            Some("web") => web::main(pool).await.expect("Failed to run webserver"),
             _ => (),
         }
     }
