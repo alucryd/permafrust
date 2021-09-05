@@ -137,7 +137,7 @@ pub async fn create(
             &create_output.archive.id,
             &Local::now().naive_local(),
             &directory.blake3_hash,
-            directory_id,
+            &directory.id,
         )
         .await;
     }
@@ -157,7 +157,7 @@ pub async fn update(
         vec![find_directory_by_id(conn, directory_id).await]
     };
     for directory in directories {
-        let archive = find_archive_by_directory_id(conn, directory_id)
+        let archive = find_archive_by_directory_id(conn, &directory.id)
             .await
             .unwrap();
         let df_output = df::main(repo).await;
