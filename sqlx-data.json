@@ -53,44 +53,6 @@
       ]
     }
   },
-  "11e7e9c4e67f71cd0696e1d9324f905336daf6d09522355d3bcdcc2ca6ba690f": {
-    "query": "\n        SELECT *\n        FROM directories\n        WHERE root_directory_id = $1\n        ORDER BY path\n        ",
-    "describe": {
-      "columns": [
-        {
-          "ordinal": 0,
-          "name": "id",
-          "type_info": "Uuid"
-        },
-        {
-          "ordinal": 1,
-          "name": "path",
-          "type_info": "Varchar"
-        },
-        {
-          "ordinal": 2,
-          "name": "blake3_hash",
-          "type_info": "Varchar"
-        },
-        {
-          "ordinal": 3,
-          "name": "root_directory_id",
-          "type_info": "Uuid"
-        }
-      ],
-      "parameters": {
-        "Left": [
-          "Uuid"
-        ]
-      },
-      "nullable": [
-        false,
-        false,
-        false,
-        false
-      ]
-    }
-  },
   "1527cb79300651efd43eb1c68bfccd576af63e2344370fbc573b81b94315c1d8": {
     "query": "\n        SELECT *\n        FROM directories\n        WHERE path = $1\n        ",
     "describe": {
@@ -166,6 +128,82 @@
         "Left": []
       },
       "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "798c87ebeed36e2d4278663bc7e340387a106be2dfd21e0cc563d07d365142ab": {
+    "query": "\n        SELECT *\n        FROM directories d\n        WHERE d.root_directory_id = $1\n        AND EXISTS (\n            SELECT a.id\n            FROM archives a\n            WHERE a.directory_id = d.id\n        )\n        ORDER BY d.path\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "path",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "blake3_hash",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 3,
+          "name": "root_directory_id",
+          "type_info": "Uuid"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "83e70f3a6c6e571359904d57cba62ee5b322fcbe0a539d6c3a70749314c09f66": {
+    "query": "\n        SELECT *\n        FROM directories d\n        WHERE root_directory_id = $1\n        AND NOT EXISTS (\n            SELECT a.id\n            FROM archives a\n            WHERE a.directory_id = d.id\n        )\n        ORDER BY d.path\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Uuid"
+        },
+        {
+          "ordinal": 1,
+          "name": "path",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "blake3_hash",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 3,
+          "name": "root_directory_id",
+          "type_info": "Uuid"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      },
+      "nullable": [
+        false,
         false,
         false,
         false

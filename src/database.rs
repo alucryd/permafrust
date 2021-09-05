@@ -138,7 +138,7 @@ pub async fn find_directories(conn: &mut PgConnection) -> Vec<Directory> {
     .expect("Error while finding directories")
 }
 
-pub async fn find_directories_by_root_directory_id(
+pub async fn find_directories_with_archives_by_root_directory_id(
     conn: &mut PgConnection,
     root_directory_id: &Uuid,
 ) -> Vec<Directory> {
@@ -146,9 +146,41 @@ pub async fn find_directories_by_root_directory_id(
         Directory,
         "
         SELECT *
-        FROM directories
+        FROM directories d
+        WHERE d.root_directory_id = $1
+        AND EXISTS (
+            SELECT a.id
+            FROM archives a
+            WHERE a.directory_id = d.id
+        )
+        ORDER BY d.path
+        ",
+        root_directory_id
+    )
+    .fetch_all(conn)
+    .await
+    .expect(&format!(
+        "Error while finding directories with root directory id {}",
+        root_directory_id,
+    ))
+}
+
+pub async fn find_directories_without_archives_by_root_directory_id(
+    conn: &mut PgConnection,
+    root_directory_id: &Uuid,
+) -> Vec<Directory> {
+    sqlx::query_as!(
+        Directory,
+        "
+        SELECT *
+        FROM directories d
         WHERE root_directory_id = $1
-        ORDER BY path
+        AND NOT EXISTS (
+            SELECT a.id
+            FROM archives a
+            WHERE a.directory_id = d.id
+        )
+        ORDER BY d.path
         ",
         root_directory_id
     )

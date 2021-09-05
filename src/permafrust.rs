@@ -110,7 +110,7 @@ pub async fn create(
     root_directories: bool,
 ) {
     let directories = if root_directories {
-        find_directories_by_root_directory_id(conn, directory_id).await
+        find_directories_without_archives_by_root_directory_id(conn, directory_id).await
     } else {
         vec![find_directory_by_id(conn, directory_id).await]
     };
@@ -152,7 +152,7 @@ pub async fn update(
     root_directories: bool,
 ) {
     let directories = if root_directories {
-        find_directories_by_root_directory_id(conn, directory_id).await
+        find_directories_with_archives_by_root_directory_id(conn, directory_id).await
     } else {
         vec![find_directory_by_id(conn, directory_id).await]
     };
