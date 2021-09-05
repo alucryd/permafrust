@@ -220,7 +220,7 @@ pub async fn check(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, repai
 }
 
 fn get_archive_prefix(path: &str) -> String {
-    path.split(|c| c == '/')
+    path.split(|c| c == '/' || c == '_')
         .map(|component| any_ascii(component))
         .collect::<Vec<String>>()
         .join("-")
