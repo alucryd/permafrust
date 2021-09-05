@@ -3,7 +3,8 @@ use super::database::*;
 use super::df;
 use super::du;
 use async_std::path::Path;
-use chrono::{DateTime, Local, NaiveDateTime};
+use blake3::{Hash, Hasher};
+use chrono::{DateTime, Local};
 use log::info;
 use sqlx::PgConnection;
 use std::convert::TryFrom;
@@ -51,17 +52,16 @@ pub async fn scan(conn: &mut PgConnection) {
             .collect();
         for directory in directories {
             let path = directory.path().as_os_str().to_str().unwrap();
-            let modified_date = get_most_recent_modified_date(path);
+            let blake3_hash = compute_directory_hash(path);
             let directory = find_directory_by_path(conn, path).await;
             match directory {
                 Some(directory) => {
-                    if modified_date.timestamp_millis() > directory.modified_date.timestamp_millis()
-                    {
-                        update_directory(conn, &directory.id, &modified_date).await;
+                    if blake3_hash != Hash::from_hex(directory.blake3_hash).unwrap() {
+                        update_directory(conn, &directory.id, &blake3_hash.to_hex()).await;
                     }
                 }
                 None => {
-                    create_directory(conn, path, &modified_date, &root_directory.id).await;
+                    create_directory(conn, path, &blake3_hash.to_hex(), &root_directory.id).await;
                 }
             }
         }
@@ -75,9 +75,7 @@ pub async fn scan(conn: &mut PgConnection) {
         let archive = find_archive_by_directory_id(conn, &directory.id).await;
         match archive {
             Some(archive) => {
-                if archive.created_date.timestamp_millis()
-                    < directory.modified_date.timestamp_millis()
-                {
+                if archive.blake3_hash != directory.blake3_hash {
                     println!("Out of date: {} [{}]", &directory.path, &directory.id);
                 }
             }
@@ -132,6 +130,7 @@ pub async fn create(
         &create_output.repository.id,
         &create_output.archive.id,
         &Local::now().naive_local(),
+        &directory.blake3_hash,
         directory_id,
     )
     .await;
@@ -168,6 +167,7 @@ pub async fn update(
         &archive.id,
         &create_output.archive.id,
         &Local::now().naive_local(),
+        &directory.blake3_hash,
     )
     .await;
 }
@@ -212,13 +212,20 @@ fn get_archive_prefix(path: &str) -> String {
         .to_lowercase()
 }
 
-fn get_most_recent_modified_date(path: &str) -> NaiveDateTime {
-    let modified_date = WalkDir::new(path)
+fn compute_directory_hash(path: &str) -> Hash {
+    let mut hasher = Hasher::new();
+    WalkDir::new(path)
         .into_iter()
         .filter_map(|v| v.ok())
         .filter(|e| e.path().is_file())
-        .map(|e| e.metadata().unwrap().modified().unwrap())
-        .max()
-        .unwrap();
-    DateTime::<Local>::from(modified_date).naive_local()
+        .for_each(|e| {
+            hasher.update_rayon(e.path().as_os_str().to_str().unwrap().as_bytes());
+            hasher.update_rayon(
+                DateTime::<Local>::from(e.metadata().unwrap().modified().unwrap())
+                    .naive_local()
+                    .to_string()
+                    .as_bytes(),
+            );
+        });
+    hasher.finalize()
 }

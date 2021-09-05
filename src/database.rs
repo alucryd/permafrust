@@ -89,18 +89,18 @@ pub async fn delete_root_directory(conn: &mut PgConnection, id: &Uuid) {
 pub async fn create_directory(
     conn: &mut PgConnection,
     path: &str,
-    modified_date: &NaiveDateTime,
+    blake3_hash: &str,
     root_directory_id: &Uuid,
 ) -> Uuid {
     let id = Uuid::new_v4();
     sqlx::query!(
         "
-        INSERT INTO directories (id, path, modified_date, root_directory_id)
+        INSERT INTO directories (id, path, blake3_hash, root_directory_id)
         VALUES ($1, $2, $3, $4)
         ",
         &id,
         path,
-        modified_date,
+        blake3_hash,
         root_directory_id,
     )
     .execute(conn)
@@ -109,15 +109,15 @@ pub async fn create_directory(
     id
 }
 
-pub async fn update_directory(conn: &mut PgConnection, id: &Uuid, modified_date: &NaiveDateTime) {
+pub async fn update_directory(conn: &mut PgConnection, id: &Uuid, blake3_hash: &str) {
     sqlx::query!(
         "
         UPDATE directories
-        SET modified_date = $2
+        SET blake3_hash = $2
         WHERE id = $1
         ",
         id,
-        modified_date,
+        blake3_hash,
     )
     .execute(conn)
     .await
@@ -187,18 +187,20 @@ pub async fn create_archive(
     repo_id: &str,
     archive_id: &str,
     created_date: &NaiveDateTime,
+    blake3_hash: &str,
     directory_id: &Uuid,
 ) {
     sqlx::query!(
         "
-        INSERT INTO archives (id, name, repo_id, archive_id, created_date, directory_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO archives (id, name, repo_id, archive_id, created_date, blake3_hash, directory_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ",
         Uuid::new_v4(),
         name,
         repo_id,
         archive_id,
         created_date,
+        blake3_hash,
         directory_id,
     )
     .execute(conn)
@@ -211,16 +213,18 @@ pub async fn update_archive(
     id: &Uuid,
     archive_id: &str,
     created_date: &NaiveDateTime,
+    blake3_hash: &str,
 ) {
     sqlx::query!(
         "
         UPDATE archives
-        SET archive_id=$2, created_date = $3
+        SET archive_id=$2, created_date = $3, blake3_hash = $4
         WHERE id = $1
         ",
         id,
         archive_id,
         created_date,
+        blake3_hash,
     )
     .execute(conn)
     .await

@@ -10,6 +10,7 @@ exclude = ["test/"]
 
 [dependencies]
 async-std = { version = "1.9.0", features = ["attributes"] }
+blake3 = { version = "1.0.0", features = ["rayon"] }
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "2.33.3"
 dotenv = "0.15.0"

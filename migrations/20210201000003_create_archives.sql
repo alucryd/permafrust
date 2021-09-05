@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS archives (
     repo_id VARCHAR NOT NULL,
     archive_id VARCHAR NOT NULL,
     created_date TIMESTAMP NOT NULL,
+    blake3_hash VARCHAR NOT NULL,
     directory_id UUID,
     CONSTRAINT fk_directories
         FOREIGN KEY (directory_id)

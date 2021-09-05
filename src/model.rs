@@ -14,7 +14,7 @@ pub struct RootDirectory {
 pub struct Directory {
     pub id: Uuid,
     pub path: String,
-    pub modified_date: NaiveDateTime,
+    pub blake3_hash: String,
     pub root_directory_id: Uuid,
 }
 
@@ -25,5 +25,6 @@ pub struct Archive {
     pub repo_id: String,
     pub archive_id: String,
     pub created_date: NaiveDateTime,
+    pub blake3_hash: String,
     pub directory_id: Option<Uuid>,
 }
