@@ -76,10 +76,10 @@ pub async fn scan(conn: &mut PgConnection) {
         match archive {
             Some(archive) => {
                 if archive.blake3_hash != directory.blake3_hash {
-                    println!("Out of date: {} [{}]", &directory.path, &directory.id);
+                    println!("Out of date: {} [{}:{}]", &directory.path, &directory.root_directory_id, &directory.id);
                 }
             }
-            None => println!("Not backed up: {} [{}]", &directory.path, &directory.id),
+            None => println!("Not backed up: {} [{}:{}]", &directory.path, &directory.root_directory_id, &directory.id),
         }
     }
 }
@@ -107,33 +107,40 @@ pub async fn create(
     directory_id: &Uuid,
     compression: &str,
     dry_run: bool,
+    root_directories: bool,
 ) {
-    let directory = find_directory_by_id(conn, directory_id).await;
-    if let Some(archive) = find_archive_by_directory_id(conn, &directory.id).await {
-        panic!("Archive {} already exists", &archive.name);
+    let directories = if root_directories {
+        find_directories_by_root_directory_id(conn, directory_id).await
+    } else {
+        vec![find_directory_by_id(conn, directory_id).await]
     };
-    let df_output = df::main(repo).await;
-    let du_output = du::main(&directory.path).await;
-    let remaining_space_after =
-        f64::from(df_output.avail - du_output.size) / f64::from(df_output.size);
-    info!("Remaining space after: {}", remaining_space_after);
-    if remaining_space_after < 0.05 {
-        panic!("Not enough space");
+    for directory in directories {
+        if let Some(archive) = find_archive_by_directory_id(conn, &directory.id).await {
+            panic!("Archive {} already exists", &archive.name);
+        };
+        let df_output = df::main(repo).await;
+        let du_output = du::main(&directory.path).await;
+        let remaining_space_after =
+            f64::from(df_output.avail - du_output.size) / f64::from(df_output.size);
+        info!("Remaining space after: {}", remaining_space_after);
+        if remaining_space_after < 0.05 {
+            panic!("Not enough space");
+        }
+        let prefix = get_archive_prefix(&directory.path);
+        let create_output = borg::create(repo, &prefix, &directory.path, compression, dry_run)
+            .await
+            .expect("Failed to create archive");
+        create_archive(
+            conn,
+            &prefix,
+            &create_output.repository.id,
+            &create_output.archive.id,
+            &Local::now().naive_local(),
+            &directory.blake3_hash,
+            directory_id,
+        )
+        .await;
     }
-    let prefix = get_archive_prefix(&directory.path);
-    let create_output = borg::create(repo, &prefix, &directory.path, compression, dry_run)
-        .await
-        .expect("Failed to create archive");
-    create_archive(
-        conn,
-        &prefix,
-        &create_output.repository.id,
-        &create_output.archive.id,
-        &Local::now().naive_local(),
-        &directory.blake3_hash,
-        directory_id,
-    )
-    .await;
 }
 
 pub async fn update(
@@ -142,34 +149,41 @@ pub async fn update(
     directory_id: &Uuid,
     compression: &str,
     dry_run: bool,
+    root_directories: bool,
 ) {
-    let archive = find_archive_by_directory_id(conn, directory_id)
-        .await
-        .unwrap();
-    let directory = find_directory_by_id(conn, directory_id).await;
-    let df_output = df::main(repo).await;
-    let du_output = du::main(&directory.path).await;
-    let remaining_space_after =
-        f64::from(df_output.avail - du_output.size) / f64::from(df_output.size);
-    info!("Remaining space after: {}", remaining_space_after);
-    if remaining_space_after < 0.05 {
-        panic!("Not enough space");
+    let directories = if root_directories {
+        find_directories_by_root_directory_id(conn, directory_id).await
+    } else {
+        vec![find_directory_by_id(conn, directory_id).await]
+    };
+    for directory in directories {
+        let archive = find_archive_by_directory_id(conn, directory_id)
+            .await
+            .unwrap();
+        let df_output = df::main(repo).await;
+        let du_output = du::main(&directory.path).await;
+        let remaining_space_after =
+            f64::from(df_output.avail - du_output.size) / f64::from(df_output.size);
+        info!("Remaining space after: {}", remaining_space_after);
+        if remaining_space_after < 0.05 {
+            panic!("Not enough space");
+        }
+        let prefix = get_archive_prefix(&directory.path);
+        let create_output = borg::create(repo, &prefix, &directory.path, compression, dry_run)
+            .await
+            .expect("Failed to create new archive");
+        borg::prune(repo, &prefix, dry_run)
+            .await
+            .expect("Failed to prune old archive(s)");
+        update_archive(
+            conn,
+            &archive.id,
+            &create_output.archive.id,
+            &Local::now().naive_local(),
+            &directory.blake3_hash,
+        )
+        .await;
     }
-    let prefix = get_archive_prefix(&directory.path);
-    let create_output = borg::create(repo, &prefix, &directory.path, compression, dry_run)
-        .await
-        .expect("Failed to create new archive");
-    borg::prune(repo, &prefix, dry_run)
-        .await
-        .expect("Failed to prune old archive(s)");
-    update_archive(
-        conn,
-        &archive.id,
-        &create_output.archive.id,
-        &Local::now().naive_local(),
-        &directory.blake3_hash,
-    )
-    .await;
 }
 
 pub async fn delete(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, dry_run: bool) {

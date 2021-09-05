@@ -99,6 +99,12 @@ pub fn create_subcommand<'a, 'b>() -> App<'a, 'b> {
                 .help("Dry run")
                 .required(false),
         )
+        .arg(
+            Arg::with_name("ROOTDIRS")
+                .long("root-directories")
+                .help("Use root directories UUIDs")
+                .required(false),
+        )
 }
 
 pub fn update_subcommand<'a, 'b>() -> App<'a, 'b> {
@@ -131,6 +137,12 @@ pub fn update_subcommand<'a, 'b>() -> App<'a, 'b> {
                 .short("n")
                 .long("dry-run")
                 .help("Dry run")
+                .required(false),
+        )
+        .arg(
+            Arg::with_name("ROOTDIRS")
+                .long("root-directories")
+                .help("Use root directories UUIDs")
                 .required(false),
         )
 }
@@ -262,6 +274,7 @@ pub async fn create(pool: &PgPool, matches: &ArgMatches<'_>) {
             uuid,
             matches.value_of("COMPRESSION").unwrap(),
             matches.is_present("DRYRUN"),
+            matches.is_present("ROOTDIRS"),
         )
         .await;
     }
@@ -281,6 +294,7 @@ pub async fn update(pool: &PgPool, matches: &ArgMatches<'_>) {
             uuid,
             matches.value_of("COMPRESSION").unwrap(),
             matches.is_present("DRYRUN"),
+            matches.is_present("ROOTDIRS"),
         )
         .await;
     }
