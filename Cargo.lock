@@ -32,6 +32,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "any_ascii"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49cdb1275f55ad486e631f6c922405619cfcae5d782888ff19779bd3563b8470"
+
+[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1053,6 +1059,7 @@ checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
 name = "permafrust"
 version = "0.1.0"
 dependencies = [
+ "any_ascii",
  "async-std",
  "blake3",
  "chrono",

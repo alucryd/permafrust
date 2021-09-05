@@ -2,6 +2,7 @@ use super::borg;
 use super::database::*;
 use super::df;
 use super::du;
+use any_ascii::any_ascii;
 use async_std::path::Path;
 use blake3::{Hash, Hasher};
 use chrono::{DateTime, Local};
@@ -76,10 +77,16 @@ pub async fn scan(conn: &mut PgConnection) {
         match archive {
             Some(archive) => {
                 if archive.blake3_hash != directory.blake3_hash {
-                    println!("Out of date: {} [{}:{}]", &directory.path, &directory.root_directory_id, &directory.id);
+                    println!(
+                        "Out of date: {} [{}:{}]",
+                        &directory.path, &directory.root_directory_id, &directory.id
+                    );
                 }
             }
-            None => println!("Not backed up: {} [{}:{}]", &directory.path, &directory.root_directory_id, &directory.id),
+            None => println!(
+                "Not backed up: {} [{}:{}]",
+                &directory.path, &directory.root_directory_id, &directory.id
+            ),
         }
     }
 }
@@ -213,12 +220,8 @@ pub async fn check(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, repai
 }
 
 fn get_archive_prefix(path: &str) -> String {
-    path.split(|c| c == '/' || c == '_')
-        .map(|component| {
-            let mut component = component.to_owned();
-            component.retain(|c| c.is_ascii_alphanumeric() || c == '_');
-            component
-        })
+    path.split(|c| c == '/')
+        .map(|component| any_ascii(component))
         .collect::<Vec<String>>()
         .join("-")
         .replace("--", "-")
