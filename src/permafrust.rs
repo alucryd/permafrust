@@ -224,6 +224,7 @@ fn get_archive_prefix(path: &str) -> String {
         .map(|component| any_ascii(component))
         .collect::<Vec<String>>()
         .join("-")
+        .replace(" ", "")
         .replace("--", "-")
         .trim_start_matches("-")
         .to_lowercase()
