@@ -51,15 +51,20 @@ pub struct Repository {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct ListOutput {
-    pub archives: Vec<Archive>,
-    encryption: Encryption,
+pub struct CreateOutput {
+    pub archive: Archive,
     pub repository: Repository,
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct CreateOutput {
-    pub archive: Archive,
+pub struct InfoOutput {
+    pub repository: Repository,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct ListOutput {
+    pub archives: Vec<Archive>,
+    encryption: Encryption,
     pub repository: Repository,
 }
 
@@ -81,6 +86,19 @@ pub async fn init(repo: &str, encryption: &str) -> Result<(), Error> {
     debug!("{:?}", command);
     command.status().await?;
     Ok(())
+}
+
+pub async fn info(repo: &str) -> Result<InfoOutput, Error> {
+    let mut args: Vec<&str> = Vec::new();
+    args.push("info");
+    args.push("--json");
+    args.push(repo);
+    let mut command = Command::new("borg");
+    command.args(&args);
+    debug!("{:?}", command);
+    let output = command.output().await?;
+    let info_output = serde_json::from_slice(output.stdout.as_slice())?;
+    Ok(info_output)
 }
 
 pub async fn list(repo: &str) -> Result<ListOutput, Error> {

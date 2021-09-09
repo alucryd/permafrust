@@ -2,6 +2,7 @@ use super::borg;
 use super::database::*;
 use super::df;
 use super::du;
+use super::model::*;
 use any_ascii::any_ascii;
 use async_std::path::Path;
 use blake3::{Hash, Hasher};
@@ -167,6 +168,7 @@ pub async fn update(
         let archive = find_archive_by_directory_id(conn, &directory.id)
             .await
             .unwrap();
+        check_archive_repository(&archive, repo).await;
         let df_output = df::main(repo).await;
         let du_output = du::main(&directory.path).await;
         let remaining_space_after =
@@ -195,6 +197,7 @@ pub async fn update(
 
 pub async fn delete(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, dry_run: bool) {
     let archive = find_archive_by_id(conn, archive_id).await;
+    check_archive_repository(&archive, repo).await;
     borg::delete(repo, &archive.name, dry_run)
         .await
         .expect("Failed to delete archive");
@@ -203,6 +206,7 @@ pub async fn delete(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, dry_
 
 pub async fn extract(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, dry_run: bool) {
     let archive = find_archive_by_id(conn, archive_id).await;
+    check_archive_repository(&archive, repo).await;
     let directory = find_directory_by_id(conn, &archive.directory_id.unwrap()).await;
     borg::check(repo, &archive.name, false)
         .await
@@ -217,6 +221,13 @@ pub async fn check(conn: &mut PgConnection, repo: &str, archive_id: &Uuid, repai
     borg::check(repo, &archive.name, repair)
         .await
         .expect("Failed to check archive");
+}
+
+async fn check_archive_repository(archive: &Archive, repo: &str) {
+    let repo_id = borg::info(repo).await.unwrap().repository.id;
+    if archive.repo_id != repo_id {
+        panic!("Wrong repository!");
+    }
 }
 
 fn get_archive_prefix(path: &str) -> String {
